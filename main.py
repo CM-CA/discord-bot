@@ -7,6 +7,8 @@ import discord  # discord.py
 import os  # os
 import requests  # requests
 import json  # json
+import feedparser  # feedparser
+import asyncio # asyncio
 from discord.ext import commands  # discord.ext.commands
 from dotenv import load_dotenv  # .env
 from weather import weather_module  # weather.py
@@ -94,6 +96,46 @@ async def weather(ctx):
 
     except:
         await ctx.send("No, no, no... Eso no.")
+
+# Comando para seguir RSS de una pagina web con feedparser
+@client.command(pass_context=True)
+async def rss(ctx):
+    try:
+        # Bot pregunta la ciudad
+        await ctx.send(f"{ctx.author.mention}, dime una pagina web con RSS")
+        # Bot espera un mensaje
+        msg = await ctx.bot.wait_for(
+            "message", check=lambda m: m.author == ctx.author, timeout=10
+        )
+        # Comprueba que autor del mensaje es el mismo que el que habla el bot
+        if msg.author == ctx.author:
+            # Guarda el argumento en una variable
+            url = msg.content
+            feed = feedparser.parse(url)
+            # Comprueba si la pagina tiene una etiqueta de titulo
+            if "title" in feed.feed:
+                # Cada 30 minutos se actualiza la pagina
+                while True:
+                    # Comprueba si la pagina tiene una etiqueta de titulo
+                    if "title" in feed.feed:
+                        # Comprueba que el ultimo titulo sea diferente al anterior
+                        if feed["entries"][0]["title"] != feed["entries"][1]["title"]:
+                            # Imprime el titulo de la pagina
+                            await ctx.channel.send(feed["entries"][0]["title"])
+                            # Imprime el link de la pagina
+                            await ctx.channel.send(feed["entries"][0]["link"])
+                            # Si los titulos coinciden, se reinicia el bucle en 30 minutos
+                            if feed["entries"][0]["title"] == feed["entries"][1]["title"]:
+                                await ctx.channel.send("No ha habido cambios")
+                                await asyncio.sleep(1800)
+                                
+            else:
+                await ctx.channel.send("No tiene etiqueta de titulo")
+
+    except:
+        await ctx.send("No, no, no... Eso no.")
+
+
 
 
 client.run(TOKEN)
